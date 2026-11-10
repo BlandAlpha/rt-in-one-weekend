@@ -1,0 +1,1 @@
+clang++ -std=c++17 -Wall -Wextra test_vec3.cpp -o test_vec3 && ./test_vec3

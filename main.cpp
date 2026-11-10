@@ -1,6 +1,6 @@
 #include <iostream>
-#include <thread>   // 新增
-#include <chrono>   // 新增
+// #include <thread>   // 新增
+// #include <chrono>   // 新增
 
 int main() {
     // 图片尺寸
@@ -15,7 +15,7 @@ int main() {
     for (int j = 0; j < image_height; j++) {
         // 进度条
         std::clog << "\rScanlines remaining:" << (image_height - j) << ' ' << std::flush;
-        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 慢下来，可以看到Progress Indicator真的在运行，实际运行时删掉
+        // std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 慢下来，可以看到Progress Indicator真的在运行，实际运行时删掉
         for(int i = 0; i < image_width; i++) {
             auto r = double(i) / (image_width - 1);
             auto g = double(j) / (image_height - 1);
