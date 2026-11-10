@@ -6,7 +6,20 @@
 // #include <thread>
 // #include <chrono>
 
+bool hit_sphere(const point3& center, double radius, const ray& r) {
+    // 求解方程相交，过程看 https://raytracing.github.io/books/RayTracingInOneWeekend.html 5.1节
+    vec3 oc = center - r.origin();
+    auto a = dot(r.direction(), r.direction());
+    auto b = -2.0 * dot(r.direction(), oc);
+    auto c = dot(oc, oc) - radius * radius;
+    auto discriminant = b*b - 4*a*c;
+    return (discriminant >= 0);
+}
+
 color ray_color(const ray& r) {
+    if(hit_sphere(point3(0,0,-1), 0.5, r))
+        return color(0,0,1);
+    
     vec3 unit_direction = unit_vector(r.direction());
     auto a = 0.5*(unit_direction.y() + 1.0);
     // 线性插值渐变，从蓝色混合到白色，数值越小（越在上面）越蓝
@@ -18,7 +31,7 @@ int main() {
 
     // 定义图片宽高比以及宽度
     auto aspect_ratio = 16.0 / 9.0;
-    int image_width = 400;
+    int image_width = 720;
 
     // 计算高，并且使其不小于1
     int image_height = int(image_width / aspect_ratio);
