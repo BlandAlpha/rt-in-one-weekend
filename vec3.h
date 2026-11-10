@@ -101,6 +101,9 @@ inline vec3 cross(const vec3& u, const vec3& v) {
                 u.e[0] * v.e[1] - u.e[1] * v.e[0]);
 }
 
+/// @brief 归一化向量
+/// @param v vec3向量
+/// @return 归一化后的v
 inline vec3 unit_vector(const vec3& v) {
     return v / v.length();
 }
