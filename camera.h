@@ -8,6 +8,7 @@ class camera {
     double aspect_ratio = 1.0;      // 宽高比
     int    image_width = 400;       // 横向像素数量
     int    samples_per_pixel = 10;  // 每像素随机采样数
+    int    max_depth = 10;          // 最大光线弹射次数
     
     /////////// 渲染 ///////////
     void render(const hittable& world) {
@@ -28,7 +29,7 @@ class camera {
                     // 随机采样光线
                     ray r = get_ray(i, j);
                     // 将颜色信息求和
-                    pixel_color += ray_color(r, world);
+                    pixel_color += ray_color(r, max_depth, world);
                 }
                 // 将颜色信息求平均值
                 write_color(std::cout, pixel_sample_scale * pixel_color);
@@ -111,12 +112,16 @@ class camera {
     }
 
     /////////// 计算颜色 ///////////
-    color ray_color(const ray& r, const hittable& world) const {
+    color ray_color(const ray& r, int depth, const hittable& world) const {
+        // 如果超过最大弹射次数还没找到光源，停止查找光线
+        if (depth <= 0)
+            return color(0,0,0);
+
         hit_record rec;
         if (world.hit(r, interval(0, infinity), rec)) {
             vec3 bounce_dir = random_on_hemisphere(rec.normal);
             // 递归计算光线，灰色
-            return 0.5 * ray_color(ray(rec.p, bounce_dir), world);
+            return 0.5 * ray_color(ray(rec.p, bounce_dir), depth - 1, world);
         }
         
         vec3 unit_direction = unit_vector(r.direction());
