@@ -114,11 +114,13 @@ class camera {
     color ray_color(const ray& r, const hittable& world) const {
         hit_record rec;
         if (world.hit(r, interval(0, infinity), rec)) {
-            return 0.5 * (rec.normal + color(1,1,1));
+            vec3 bounce_dir = random_on_hemisphere(rec.normal);
+            // 递归计算光线，灰色
+            return 0.5 * ray_color(ray(rec.p, bounce_dir), world);
         }
         
         vec3 unit_direction = unit_vector(r.direction());
-        auto a = 0.5*(unit_direction.y() + 1.0);
+        auto a = 0.5 *(unit_direction.y() + 1.0);
         // 线性插值渐变，从蓝色混合到白色，数值越小（越在上面）越蓝
         return (1.0-a) * color(1.0, 1.0, 1.0) + a * color(0.5, 0.7, 1.0);
     }
