@@ -118,7 +118,7 @@ class camera {
             return color(0,0,0);
 
         hit_record rec;
-        if (world.hit(r, interval(0, infinity), rec)) {
+        if (world.hit(r, interval(0.001, infinity), rec)) {
             vec3 bounce_dir = random_on_hemisphere(rec.normal);
             // 递归计算光线，灰色
             return 0.5 * ray_color(ray(rec.p, bounce_dir), depth - 1, world);
