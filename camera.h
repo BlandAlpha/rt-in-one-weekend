@@ -5,14 +5,15 @@
 
 class camera {
   public:
-    // 定义图片宽高比以及宽度
-    double aspect_ratio = 1.0;
-    int    image_width = 400;
+    double aspect_ratio = 1.0;      // 宽高比
+    int    image_width = 400;       // 横向像素数量
+    int    samples_per_pixel = 10;  // 每像素随机采样数
     
+    /////////// 渲染 ///////////
     void render(const hittable& world) {
         // 初始化
         initialize();
-        
+
         // 图片头文件
         std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
 
@@ -22,12 +23,15 @@ class camera {
             std::clog << "\rScanlines remaining:" << (image_height - j) << ' ' << std::flush;
             // std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 慢下来，可以看到Progress Indicator真的在运行，实际运行时删掉
             for(int i = 0; i < image_width; i++) {
-                auto pixel_center = pixel00_loc + (i * pixel_delta_u) + (j * pixel_delta_v);
-                auto ray_direction = pixel_center - camera_center;
-                ray r(camera_center, ray_direction);
-
-                color pixel_color = ray_color(r, world);
-                write_color(std::cout, pixel_color);
+                color pixel_color(0,0,0);
+                for (int sample = 0; sample < samples_per_pixel; sample++) {
+                    // 随机采样光线
+                    ray r = get_ray(i, j);
+                    // 将颜色信息求和
+                    pixel_color += ray_color(r, world);
+                }
+                // 将颜色信息求平均值
+                write_color(std::cout, pixel_sample_scale * pixel_color);
             }
         }
 
@@ -36,15 +40,19 @@ class camera {
 
   private:
     int    image_height;
+    double pixel_sample_scale;
     point3 camera_center;
     point3 pixel00_loc;
     vec3   pixel_delta_u;
     vec3   pixel_delta_v;
 
+    /////////// 初始化 ///////////
     void initialize() {
         // 计算高，并且使其不小于1
         image_height = int(image_width / aspect_ratio);
         image_height = (image_height < 1) ? 1 : image_height;
+
+        pixel_sample_scale = 1.0 / samples_per_pixel;
 
         // 相机原点
         camera_center = point3(0, 0, 0);   // 首先使用point3定义构造函数，然后使用auto自动推断类型
@@ -78,6 +86,31 @@ class camera {
         pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
     }
 
+    /////////// 随机光线 ///////////
+    
+    /// @brief 将指向像素 `(i, j)` 的光线在一个像素点范围内进行随机offset
+    /// @param i `int`: x轴像素位置
+    /// @param j `int`: y轴像素位置
+    /// @return `ray`: 新的随机光线
+    ray get_ray (int i, int j) {
+        auto offset = sample_square();
+        auto pixel_sample = pixel00_loc
+                          + ((i + offset.x()) * pixel_delta_u)
+                          + ((j + offset.y()) * pixel_delta_v);
+
+        auto ray_origin = camera_center;
+        auto ray_direction = pixel_sample - ray_origin;
+
+        return ray(ray_origin, ray_direction);
+    }
+
+    /// @brief 返回一个 x=[-0.5, 0.5], y=[-0.5, 0.5] 的采样空间
+    /// @return 从(0, 0)指向目标点的 `vec3` 向量
+    vec3 sample_square() const {
+        return vec3(random_double() - 0.5, random_double() - 0.5, 0);
+    }
+
+    /////////// 计算颜色 ///////////
     color ray_color(const ray& r, const hittable& world) const {
         hit_record rec;
         if (world.hit(r, interval(0, infinity), rec)) {
