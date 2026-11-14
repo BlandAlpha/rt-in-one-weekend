@@ -6,10 +6,12 @@
 
 class camera {
   public:
-    double aspect_ratio = 1.0;      // 宽高比
-    int    image_width = 400;       // 横向像素数量
-    int    samples_per_pixel = 10;  // 每像素随机采样数
-    int    max_depth = 10;          // 最大光线弹射次数
+    double aspect_ratio         = 1.0;  // 宽高比
+    int    image_width          = 100;  // 横向像素数量
+    int    samples_per_pixel    = 10;   // 每像素随机采样数
+    int    max_depth            = 10;   // 最大光线弹射次数
+    
+    double vfov                 = 10;   // 垂直视场角
     
     /////////// 渲染 ///////////
     void render(const hittable& world) {
@@ -67,7 +69,9 @@ class camera {
         double real_aspect_ratio = double(image_width) / image_height;
         
         // 人眼和相机的视野，通常由“垂直视场角”定义。 因此这里用height来定基准
-        auto viewport_height = 2.0;  // 选择2.0是因为好算，上半部分[0, 1]，下半部分[-1, 0]
+        auto theta = degrees_to_radians(vfov);
+        auto h = std::tan(theta/2);
+        auto viewport_height = 2 * h * focal_length;
         auto viewport_width = viewport_height * real_aspect_ratio;
 
         // viewport方向向量（右为正，下为正）
