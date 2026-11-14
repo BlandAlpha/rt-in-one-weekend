@@ -5,12 +5,11 @@
 
 class sphere : public hittable {
   public:
-    sphere(const point3& center, double radius) : center(center), radius(std::fmax(0, radius)) {
-        // TODO: 使用mat指针初始化材质
-    }
+    sphere(const point3& center, double radius, shared_ptr<material> mat) 
+    : center(center), radius(std::fmax(0, radius)), mat(mat) {}
 
     bool hit(const ray&r, interval ray_t, hit_record& rec) const override {
-        // 求解方程相交，过程看 https://raytracing.github.io/books/RayTracingInOneWeekend.html 5.1节和6.2节简化
+        // 求解方程相交，过程看5.1节和6.2节简化
         vec3 oc = center - r.origin();
         auto a = r.direction().length_squared();
         auto h = dot(r.direction(), oc);
@@ -24,9 +23,9 @@ class sphere : public hittable {
 
         // 寻找打击点，如果不优于max则舍弃（一般有两个交点）
         auto root = (h - sqrtd) / a;                    // 先找小交点
-        if (!ray_t.surrounds(root)) {     // 小交点不在范围里
+        if (!ray_t.surrounds(root)) {                   // 小交点不在范围里
             root = (h + sqrtd) / a;                     // 再试试大交点
-            if (!ray_t.surrounds(root)) { // 大交点也不在？
+            if (!ray_t.surrounds(root)) {               // 大交点也不在？
                 return false;                           // 没招了，丢吧
             }
         }

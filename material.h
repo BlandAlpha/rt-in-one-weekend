@@ -28,7 +28,7 @@ class material {
 /*
 朗伯反射其实就是理想的漫反射。
 有两种求解思路：
-1. 光线进入，向四面八方随机弹开，但在弹开的时候把光线的能量乘以R，也就是反照率。
+1. 光线进入，向四面八方随机弹开，但在弹开的时候把光线(albedo)的能量乘以R，也就是反照率。
 2. 光线进入，根据反照率，有R的概率让光线完整弹开，但也意味着有(1-R)的概率被吸收成为纯黑色
 这里我们使用方法1。
 */
@@ -54,6 +54,26 @@ class lambertian : public material {
         return true;
     }
 
+  private:
+    color albedo;
+};
+
+class metal : public material {
+  public:
+    metal(const color& albedo) : albedo(albedo) {}
+
+    bool scatter(
+        const ray& r_in,
+        const hit_record& rec,
+        color& attenuation,
+        ray& scattered
+    ) const override {
+        vec3 reflected = reflect(r_in.direction(), rec.normal);
+        scattered = ray(rec.p, reflected);
+        attenuation = albedo;
+        return true;
+    }
+  
   private:
     color albedo;
 };
