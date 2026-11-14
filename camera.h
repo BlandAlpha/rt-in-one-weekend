@@ -1,6 +1,11 @@
 #ifndef CAMERA
 #define CAMERA
 
+#include <thread>
+#include <atomic>
+#include <vector>
+#include <chrono>
+
 #include "hittable.h"
 #include "material.h"
 
@@ -26,22 +31,89 @@ class camera {
 
         // 图片头文件
         std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+        
+        if (multi_thread) {
+            // 1. 分配内存画布
+            std::vector<std::vector<color>> framebuffer(image_height, std::vector<color>(image_width));
+            
+            std::atomic<int> next_row(0);
+            std::atomic<int> finished_rows(0); // 新增：记录已经渲染完的行数
+            int num_threads = std::thread::hardware_concurrency();
+            std::vector<std::thread> threads;
 
-        // 写入像素点
-        for (int j = 0; j < image_height; j++) {
-            // 进度条
-            std::clog << "\rScanlines remaining:" << (image_height - j) << ' ' << std::flush;
-            // std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 慢下来，可以看到Progress Indicator真的在运行，实际运行时删掉
-            for(int i = 0; i < image_width; i++) {
-                color pixel_color(0,0,0);
-                for (int sample = 0; sample < samples_per_pixel; sample++) {
-                    // 随机采样光线
-                    ray r = get_ray(i, j);
-                    // 将颜色信息求和
-                    pixel_color += ray_color(r, max_depth, world);
+            auto render_worker = [&]() {
+                while (true) {
+                    int j = next_row.fetch_add(1);
+                    if (j >= image_height) break;
+
+                    for (int i = 0; i < image_width; i++) {
+                        color pixel_color(0,0,0);
+                        for (int sample = 0; sample < samples_per_pixel; sample++) {
+                            ray r = get_ray(i, j);
+                            pixel_color += ray_color(r, max_depth, world);
+                        }
+                        framebuffer[j][i] = pixel_sample_scale * pixel_color;
+                    }
+                    // 这一行渲染完了，计数器 +1
+                    finished_rows.fetch_add(1); 
                 }
-                // 将颜色信息求平均值
-                write_color(std::cout, pixel_sample_scale * pixel_color);
+            };
+
+            // 2. 启动子线程
+            for (int t = 0; t < num_threads; t++) {
+                threads.emplace_back(render_worker);
+            }
+
+            // 3. 主线程负责刷新进度条
+            while (true) {
+                int current_finished = finished_rows.load();
+                if (current_finished >= image_height) break;
+
+                // 计算百分比
+                double progress = double(current_finished) / image_height;
+                std::clog << "\rRendering: [" 
+                          << std::string(int(progress * 20), '=') // 进度条方块
+                          << std::string(20 - int(progress * 20), ' ')
+                          << "] " << int(progress * 100.0) << "% " << std::flush;
+                // 睡 100 毫秒再查一次，避免疯狂刷新拖慢 CPU
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+
+            // 4. 等待所有子线程收工
+            for (auto& thread : threads) {
+                thread.join();
+            }
+            std::clog << "\rRendering: 100% (" << image_height << "/" << image_height << " lines)      \n";
+
+            // 5. 写入文件
+            std::clog << "Writing to PPM file...\n";
+            for (int j = 0; j < image_height; j++) {
+                // 文件写入进度条
+                std::clog << "\rWriting: " << int((double(j)/image_height) * 100.0) << "% " << std::flush;
+                for (int i = 0; i < image_width; i++) {
+                    write_color(std::cout, framebuffer[j][i]);
+                }
+            }
+            std::clog << "\rWriting: 100% \n";
+
+
+        } else {
+            // 单线程写入像素点
+            for (int j = 0; j < image_height; j++) {
+                // 进度条
+                std::clog << "\rScanlines remaining:" << (image_height - j) << ' ' << std::flush;
+                // std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 慢下来，可以看到Progress Indicator真的在运行，实际运行时删掉
+                for(int i = 0; i < image_width; i++) {
+                    color pixel_color(0,0,0);
+                    for (int sample = 0; sample < samples_per_pixel; sample++) {
+                        // 随机采样光线
+                        ray r = get_ray(i, j);
+                        // 将颜色信息求和
+                        pixel_color += ray_color(r, max_depth, world);
+                    }
+                    // 将颜色信息求平均值
+                    write_color(std::cout, pixel_sample_scale * pixel_color);
+                }
             }
         }
 
@@ -59,8 +131,11 @@ class camera {
     vec3   defocus_disk_u;
     vec3   defocus_disk_v;
 
+    bool multi_thread;
+
     /////////// 初始化 ///////////
     void initialize() {
+        multi_thread = true;
         // 计算高，并且使其不小于1
         image_height = int(image_width / aspect_ratio);
         image_height = (image_height < 1) ? 1 : image_height;
