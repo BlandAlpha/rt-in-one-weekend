@@ -140,10 +140,27 @@ inline vec3 random_on_hemisphere(const vec3& normal) {
         return -on_unit_sphere;
 }
 
+/// @brief 计算反射光线
+/// @param v vec3 入射光线方向
+/// @param n vec3 法线方向
+/// @return vec3 反射光线方向
 inline vec3 reflect(const vec3& v, const vec3& n) {
     // 参见图15
     vec3 b = -2 * dot(v, n) * n;
     return v + 2*b;
+}
+
+/// @brief 计算折射光线
+/// @param uv vec3 入射光线方向 (图形学经常这么写)
+/// @param n vec3 法线方向
+/// @param etai_over_etat double 入射介质ita / 投射介质ita
+/// @return vec3 折射光线方向
+inline vec3 refract(const vec3& uv, const vec3& n, double etai_over_etat) {
+    // 斯涅尔定律，参见11.2
+    auto cos_theta = std::fmin(dot(-uv, n), 1.0);
+    vec3 r_out_perp = etai_over_etat * (uv + cos_theta * n);
+    vec3 r_out_parallel = -std::sqrt(1.0 - r_out_perp.length_squared()) * n;
+    return r_out_parallel + r_out_perp;
 }
 
 #endif
