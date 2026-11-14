@@ -11,7 +11,10 @@ class camera {
     int    samples_per_pixel    = 10;   // 每像素随机采样数
     int    max_depth            = 10;   // 最大光线弹射次数
     
-    double vfov                 = 10;   // 垂直视场角
+    double vfov     = 10;               // 垂直视场角
+    point3 lookfrom = point3(0,0,0);    // 相机原点
+    point3 lookat   = point3(0,0,-1);   // 瞄准方向
+    vec3   vup      = vec3(0,1,0);      // 相对向上的方向
     
     /////////// 渲染 ///////////
     void render(const hittable& world) {
@@ -49,6 +52,7 @@ class camera {
     point3 pixel00_loc;
     vec3   pixel_delta_u;
     vec3   pixel_delta_v;
+    vec3   u, v, w;
 
     /////////// 初始化 ///////////
     void initialize() {
@@ -59,11 +63,11 @@ class camera {
         pixel_sample_scale = 1.0 / samples_per_pixel;
 
         // 相机原点
-        camera_center = point3(0, 0, 0);   // 首先使用point3定义构造函数，然后使用auto自动推断类型
+        camera_center = lookfrom;
         
         // 摄像机原点到viewport的距离，目前只是用来确定fov
         // viewport是真实存在于世界空间的一个辅助平面，用于确定ray方向
-        auto focal_length = 1.0;
+        auto focal_length = (lookfrom - lookat).length();
 
         // 真实的宽高比可能因为取整或者最小的1高度产生变化，因此重新计算真实宽高比
         double real_aspect_ratio = double(image_width) / image_height;
@@ -74,9 +78,14 @@ class camera {
         auto viewport_height = 2 * h * focal_length;
         auto viewport_width = viewport_height * real_aspect_ratio;
 
+        // 计算相机本地三轴信息
+        w = unit_vector(lookfrom - lookat);
+        u = unit_vector(cross(vup, w));
+        v = cross(w, u);
+
         // viewport方向向量（右为正，下为正）
-        auto viewport_u = vec3(viewport_width, 0, 0);
-        auto viewport_v = vec3(0, -viewport_height, 0);
+        auto viewport_u = viewport_width * u;
+        auto viewport_v = viewport_height * -v;
 
         // 横纵delta
         pixel_delta_u = viewport_u / image_width;
@@ -84,9 +93,9 @@ class camera {
 
         // viewport左上角，左上角像素采样点
         auto viewport_upper_left = camera_center 
-                                - vec3(0, 0, focal_length)     // 世界空间里右x为正，上y为正，右手定则发现朝向我们z为正，因此相机正对-z方向，用减法
-                                - viewport_u / 2               // 向上走，对于viewport方向向量来说是反着走，用减法
-                                - viewport_v / 2;              // 向左走为负，用减法
+                                 - (focal_length * w)    // 世界空间里右x为正，上y为正，右手定则发现朝向我们z为正，因此相机正对-z方向，用减法
+                                 - viewport_u / 2        // 向上走，对于viewport方向向量来说是反着走，用减法
+                                 - viewport_v / 2;       // 向左走为负，用减法
 
         // 左上角像素采样点位置
         pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
