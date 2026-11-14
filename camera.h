@@ -15,6 +15,9 @@ class camera {
     point3 lookfrom = point3(0,0,0);    // 相机原点
     point3 lookat   = point3(0,0,-1);   // 瞄准方向
     vec3   vup      = vec3(0,1,0);      // 相对向上的方向
+
+    double defocus_angle = 0;   // 散景角度
+    double focus_dist = 10;     // 
     
     /////////// 渲染 ///////////
     void render(const hittable& world) {
@@ -53,6 +56,8 @@ class camera {
     vec3   pixel_delta_u;
     vec3   pixel_delta_v;
     vec3   u, v, w;
+    vec3   defocus_disk_u;
+    vec3   defocus_disk_v;
 
     /////////// 初始化 ///////////
     void initialize() {
@@ -66,8 +71,7 @@ class camera {
         camera_center = lookfrom;
         
         // 摄像机原点到viewport的距离，目前只是用来确定fov
-        // viewport是真实存在于世界空间的一个辅助平面，用于确定ray方向
-        auto focal_length = (lookfrom - lookat).length();
+        // viewport是真实存在于世界空间的一个辅助平面，用于确定ray方向（13.2更新：也用来确定焦平面）
 
         // 真实的宽高比可能因为取整或者最小的1高度产生变化，因此重新计算真实宽高比
         double real_aspect_ratio = double(image_width) / image_height;
@@ -75,7 +79,7 @@ class camera {
         // 人眼和相机的视野，通常由“垂直视场角”定义。 因此这里用height来定基准
         auto theta = degrees_to_radians(vfov);
         auto h = std::tan(theta/2);
-        auto viewport_height = 2 * h * focal_length;
+        auto viewport_height = 2 * h * focus_dist;
         auto viewport_width = viewport_height * real_aspect_ratio;
 
         // 计算相机本地三轴信息
@@ -93,12 +97,17 @@ class camera {
 
         // viewport左上角，左上角像素采样点
         auto viewport_upper_left = camera_center 
-                                 - (focal_length * w)    // 世界空间里右x为正，上y为正，右手定则发现朝向我们z为正，因此相机正对-z方向，用减法
+                                 - (focus_dist * w)    // 世界空间里右x为正，上y为正，右手定则发现朝向我们z为正，因此相机正对-z方向，用减法
                                  - viewport_u / 2        // 向上走，对于viewport方向向量来说是反着走，用减法
                                  - viewport_v / 2;       // 向左走为负，用减法
 
         // 左上角像素采样点位置
         pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
+
+        // 计算相机焦盘向量
+        auto defocus_radius = focus_dist * std::tan(degrees_to_radians(defocus_angle / 2));
+        defocus_disk_u = u * defocus_radius;
+        defocus_disk_v = v * defocus_radius;
     }
 
     /////////// 随机光线 ///////////
@@ -108,12 +117,13 @@ class camera {
     /// @param j `int`: y轴像素位置
     /// @return `ray`: 新的随机光线
     ray get_ray (int i, int j) {
+        // 13.2更新：失焦计算
         auto offset = sample_square();
         auto pixel_sample = pixel00_loc
                           + ((i + offset.x()) * pixel_delta_u)
                           + ((j + offset.y()) * pixel_delta_v);
 
-        auto ray_origin = camera_center;
+        auto ray_origin = (defocus_angle <= 0) ? camera_center : defocus_disk_sample();
         auto ray_direction = pixel_sample - ray_origin;
 
         return ray(ray_origin, ray_direction);
@@ -123,6 +133,11 @@ class camera {
     /// @return 从(0, 0)指向目标点的 `vec3` 向量
     vec3 sample_square() const {
         return vec3(random_double() - 0.5, random_double() - 0.5, 0);
+    }
+
+    point3 defocus_disk_sample() const {
+        auto p = random_in_unit_disk();
+        return camera_center + (p[0] * defocus_disk_u) + (p[1] * defocus_disk_v);
     }
 
     /////////// 计算颜色 ///////////

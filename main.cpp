@@ -21,7 +21,7 @@ int main() {
     world.add(make_shared<sphere>(point3( 0.0, -100.5, -1.0), 100.0, material_ground));
     world.add(make_shared<sphere>(point3( 0.0,    0.0, -1.2),   0.5, material_center));
     world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0),   0.5, material_left));
-    // world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0),   0.4, material_bubble));
+    world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0),   0.4, material_bubble));
     world.add(make_shared<sphere>(point3( 1.0,    0.0, -1.0),   0.5, material_right));
 
     ////////// 相机 //////////
@@ -32,10 +32,13 @@ int main() {
     cam.samples_per_pixel = 500;
     cam.max_depth         = 40;
 
-    cam.vfov     = 35;
+    cam.vfov     = 20;
     cam.lookfrom = point3(-4,2,0.5);
     cam.lookat   = point3(0,0,-1);
     cam.vup      = vec3(0,1,0);
+
+    cam.defocus_angle = 5.0;
+    cam.focus_dist = (cam.lookat - cam.lookfrom).length();
 
     cam.render(world);
 }
